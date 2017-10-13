@@ -9,6 +9,7 @@ import punycode from 'punycode';
 
 // Custom NPM Modules
 import emojiStrip from 'emoji-strip';
+import isUrl from 'is-url';
 
 const server = express();
 server.use(bodyParser.json());
@@ -17,10 +18,27 @@ const collection = 'redirects';
 const notFound = 'Not Found';
 const recordFound = 'Already Exists';
 
+const errors = {
+  notFound: { affects: 'emoji', error: 'not found'},
+  duplicate: { affects: 'emoji', error: 'tinymoji already exists' },
+  noEmojiIncluded: { affects: 'emoji', error: 'must include emoji' },
+  noRedirectIncluded: { affects: 'redirect_url', error: 'must include a redirect url' },
+  invalidEmoji: { affects: 'emoji', error: 'include only emoji' },
+  invalidUrl: { affects: 'redirect_url', error: 'invalid url' }
+}
+
 
 // Helper functions
-function validate(emojiStr) {
-  stripped = emojiStrip(emojiStr);
+function getError(error) {
+  return JSON.stringify(errors[error]);
+} 
+
+function validateUrl(url) {
+  return isUrl(url);
+}
+
+function validateEmoji(emojiStr) {
+  var stripped = emojiStrip(emojiStr);
   return !stripped.length;
 }
 
@@ -90,7 +108,7 @@ server.get('/:emojis', (req, res, next) => {
   const { MONGO_URL } = req.webtaskContext.data;
   const { emojis } = req.params;
   
-  if (!validate(emojis)) {
+  if (!validateEmoji(emojis)) {
     res.sendStatus(404);
     return;
   }
@@ -108,27 +126,43 @@ server.get('/:emojis', (req, res, next) => {
 server.post('/', (req, res, next) => {
   const { MONGO_URL } = req.webtaskContext.data;
 
-  var newEntry = req.body;
+  var data = req.body;
   
-  if (!validate(newEntry.emojis)) {
-    res.status(400).send('Emojis Only');
+  if (!('emojis' in data) || !data.emojis) {
+    res.status(400).send(getError('invalidEmoji'));
     return;
   }
   
-  newEntry.asciiEmojis = punycode.encode(newEntry.emojis)
-
-  delete newEntry.emojis;
-  newEntry.hits = 0;
-
+  if (!('redirect_url' in data) || !data.redirect_url) {
+    res.status(400).send(getError('noRedirectIncluded'));
+    return
+  }
+  
+  if (!validateEmoji(data.emojis)) {
+    res.status(400).send(getError('noEmojiIncluded'));
+    return;
+  }
+  
+  if (!validateUrl(data.redirect_url)) {
+    res.status(400).send(getError('invalidUrl'));
+    return;
+  }
+  
+  var newEntry = {
+    asciiEmojis: punycode.encode(data.emojis),
+    redirect_url: data.redirect_url,
+    hits: 0
+  };
+  
   addRedirect(MONGO_URL, newEntry)
     .then( result => {
       res.status(201).send(result);
     })
     .catch( err => {
       if (err === recordFound) {
-        res.sendStatus(409);
+        res.status(409).send(getError('duplicate'));
       } else {
-        res.sendStatus(400);
+        res.status(400).send(err);
       }
     });
 });

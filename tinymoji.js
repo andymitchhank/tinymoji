@@ -5,9 +5,10 @@ import bodyParser from 'body-parser';
 import Webtask from 'webtask-tools';
 import { MongoClient } from 'mongodb';
 import { ObjectID } from 'mongodb';
+import punycode from 'punycode';
 
 // Custom NPM Modules
-import punycode from 'punycode';
+import emojiStrip from 'emoji-strip';
 
 const server = express();
 server.use(bodyParser.json());
@@ -19,7 +20,8 @@ const recordFound = 'Already Exists';
 
 // Helper functions
 function validate(emojiStr) {
-  return true;
+  stripped = emojiStrip(emojiStr);
+  return !stripped.length;
 }
 
 function objectIsEmpty(obj) {

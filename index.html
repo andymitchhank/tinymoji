@@ -1,0 +1,164 @@
+<html>
+	<head>
+		<title>tinymoji</title>
+
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.6.0/css/bulma.min.css">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+		<link href="lib/css/emoji.css" rel="stylesheet">
+
+		<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.7.1/clipboard.min.js"></script>
+
+	</head>
+	<body>
+
+		<section class="hero">
+			<div class="hero-body">
+				<div class="container" style="max-width: 400px; margin: auto;">
+
+					<div class="box">
+						<form>
+							<div class="field">
+								<label class="label">tinymoji.com/r/</label>
+								<div class="control">
+									<input id="emoji-input" class="input" type="text" placeholder="😀" data-bind="value: emojis">
+								</div>
+								<div id="emoji-help" class="help is-danger"></div>
+							</div>
+
+							<div class="field">
+								<label class="label">should redirect to</label>
+								<div class="control">
+									<input id="url-input" class="input" type="url" placeholder="https://example.com" data-bind="value: redirectUrl">
+								</div>
+								<div id="url-help" class="help is-danger"></div>
+							</div>
+
+							<div class="control" data-bind="if: !generating()">
+								<input type="submit" class="button is-primary" data-bind="click: submitForm" value="generate">
+							</div>
+							<div class="control" data-bind="if: generating()">
+								<button class="button is-primary"><i class="fa fa-spinner fa-spin"></i></button>
+							</div>
+						</form>
+					</div>
+
+					<div data-bind="if: newLink()">
+						<div class="notification">
+							<label class="label">your tinymoji</label>
+							<div class="box">
+								<a data-bind="attr: { href: newLink }, text: newLink" id="newLink"></a>	
+							</div>
+							<a class="button clip" data-clipboard-target="#newLink">copy</a>
+						</div>
+					</div>
+
+				</div>
+			</div>
+
+			<div class="hero-foot">
+				<div class="container has-text-centered">
+					<p>Powered by <a href="https://webtask.io">Webtask</a></p>
+				</div>
+			</div>
+		</section>
+
+		<script>
+			var webtaskUrl = 'https://wt-9dcfb2cd6e8f574d568dba79bdf6aa94-0.run.webtask.io/tinymoji';
+
+			var viewmodel = function() {
+				var self = this;
+
+				self.emojis = ko.observable();
+				self.redirectUrl = ko.observable();
+				self.newLink = ko.observable();
+				self.generating = ko.observable(false);
+
+				self.emojis.subscribe( function(newValue) {
+					if (newValue) {
+						$('#emoji-input').removeClass('is-danger');
+						$('#emoji-help').text('');
+					}
+				});
+
+				self.redirectUrl.subscribe( function(newValue) {
+					if (newValue) {
+						$('#url-input').removeClass('is-danger');
+						$('#url-help').text('');
+					}
+				});
+
+
+				self.submitForm = function() {
+
+					if (!self.emojis()) {
+						$('#emoji-input').addClass('is-danger');
+						$('#emoji-help').text('required');
+					} 
+
+					if (!self.redirectUrl()) {
+						$('#url-input').addClass('is-danger');
+						$('#url-help').text('required');
+					}
+
+					if (!self.emojis() || !self.redirectUrl()) {
+						return;
+					}
+
+					self.generating(true);
+					
+					if (!self.redirectUrl().startsWith('http://') && !self.redirectUrl().startsWith('https://')) {
+						self.redirectUrl('http://' + self.redirectUrl());
+					}
+
+					var data = {
+						emojis: self.emojis(),
+						redirect_url: self.redirectUrl()
+					};
+
+					$.ajax({
+						url: webtaskUrl,
+						contentType: "application/json;charset=UTF-8",
+						cache: false,
+						type: 'POST',
+						data : JSON.stringify(data),
+						success: function(result) {
+							self.newLink('https://tinymoji.com/r/' + self.emojis());
+							self.generating(false);
+						},
+						error: function(xhr, text) {
+							self.generating(false);
+
+							var err = JSON.parse(xhr.responseText);
+
+							if ('affects' in err) {
+								if (err.affects === 'emoji') {
+									$('#emoji-input').addClass('is-danger');
+									$('#emoji-help').text(err.error);
+								}
+
+								if (err.affects === 'redirect_url') {
+									$('#url-input').addClass('is-danger');
+									$('#url-help').text(err.error);
+								}
+							} else {
+								console.log(err);
+								alert('Something didn\'t work right');
+							}
+
+						}
+					});
+				};
+			};
+
+			ko.applyBindings(new viewmodel());
+			new Clipboard('.clip');
+		</script>
+	</body>
+</html>

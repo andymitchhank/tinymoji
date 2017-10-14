@@ -15,8 +15,8 @@ const server = express();
 server.use(bodyParser.json());
 
 const collection = 'redirects';
-const notFound = 'Not Found';
-const recordFound = 'Already Exists';
+const notFound = 'notFound';
+const recordFound = 'recordFound';
 
 const errors = {
   notFound: { affects: 'emoji', error: 'not found'},
@@ -129,7 +129,7 @@ server.post('/', (req, res, next) => {
   var data = req.body;
   
   if (!('emojis' in data) || !data.emojis) {
-    res.status(400).send(getError('invalidEmoji'));
+    res.status(400).send(getError('noEmojiIncluded'));
     return;
   }
   
@@ -139,7 +139,7 @@ server.post('/', (req, res, next) => {
   }
   
   if (!validateEmoji(data.emojis)) {
-    res.status(400).send(getError('noEmojiIncluded'));
+    res.status(400).send(getError('invalidEmoji'));
     return;
   }
   

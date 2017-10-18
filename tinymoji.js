@@ -108,6 +108,7 @@ server.get('/:emojis', (req, res, next) => {
   const { MONGO_URL } = req.webtaskContext.data;
   const { emojis } = req.params;
   
+
   if (!validateEmoji(emojis)) {
     res.sendStatus(404);
     return;

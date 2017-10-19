@@ -22,7 +22,7 @@ Recommended: Setup https using [Let's Encrypt](https://letsencrypt.org) and redi
 5. Setup /r as a proxy_pass to your new webtask.
 6. Update the webtask url in index.html to point to your new webtask.
 
-## Proxy pass setup fop nginx
+## Proxy pass setup for nginx
 
 nginx resolves DNS entries at startup, which doesn't work in this case because webtasks change IPs regularly. So, to force nginx to resolve the entry each time, we store it in a variable and rewrite the url to point to the webtask path (in my case, this in /tinymoji). Also, serve up a robots.txt file before the proxy pass if you use /r. Otherwise, nginx will try to follow the proxy pass and mangle the domain with the file name when robots.txt is requested. 
 
